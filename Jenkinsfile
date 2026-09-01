@@ -6,8 +6,8 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    credentialsId: 'YOUR-GITHUB-CREDENTIAL-ID',
-                    url: 'git@github.com:YOUR-USERNAME/YOUR-REPOSITORY.git'
+                    credentialsId: 'github-ssh',
+                    url: 'git@github.com:jacinth-emril/devjenkinssonar.git'
             }
         }
 
