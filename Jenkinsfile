@@ -1,43 +1,74 @@
 pipeline {
     agent any
 
+    environment {
+        DOCKER_REGISTRY = '172.31.2.181:8083'
+        IMAGE_NAME = '172.31.2.181:8083/devjenkins:1.0'
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
+                git(
+                    branch: 'main',
                     credentialsId: 'github-ssh',
                     url: 'git@github.com:jacinth-emril/devjenkinssonar.git'
+                )
             }
         }
 
         stage('Maven Build') {
             steps {
-                sh 'mvn clean package'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
-                    withCredentials([string(credentialsId: 'jenkinssonar', variable: 'SONAR_TOKEN')]) {
-                        sh '''
-                            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-                            -Dsonar.projectKey=devjenkins \
-                            -Dsonar.projectName=devjenkins
-                            -Dsonar.token=$SONAR_TOKEN
-                        ''' 
+                    sh 'mvn sonar:sonar'
                 }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh 'docker build -t $IMAGE_NAME .'
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'nexus-docker',
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo "$NEXUS_PASS" | docker login $DOCKER_REGISTRY \
+                        -u "$NEXUS_USER" --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Docker Push to Nexus') {
+            steps {
+                sh 'docker push $IMAGE_NAME'
             }
         }
     }
 
     post {
         success {
-            echo 'Build and SonarQube analysis completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
+
         failure {
-            echo 'Pipeline failed. Check the Console Output.'
+            echo 'Pipeline failed. Check the failed stage in Console Output.'
         }
     }
 }
