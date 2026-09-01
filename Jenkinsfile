@@ -20,11 +20,13 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube') {
-                    sh '''
-                        mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-                        -Dsonar.projectKey=devjenkins \
-                        -Dsonar.projectName=devjenkins
-                    '''
+                    withCredentials([string(credentialsId: 'jenkinssonar', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                            -Dsonar.projectKey=devjenkins \
+                            -Dsonar.projectName=devjenkins
+                            -Dsonar.token=$SONAR_TOKEN
+                        ''' 
                 }
             }
         }
